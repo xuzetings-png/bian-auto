@@ -1,0 +1,41 @@
+[project]
+name = "binance-auto-bot"
+version = "0.1.0"
+description = "Local-first Binance trading bot skeleton with safe defaults."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "httpx>=0.27.0,<1.0.0",
+  "pydantic>=2.7.0,<3.0.0",
+  "pydantic-settings>=2.2.1,<3.0.0",
+  "tenacity>=8.2.3,<9.0.0",
+]
+
+[project.scripts]
+bot = "trading_bot.main:run"
+bot-dashboard = "trading_bot.dashboard:run"
+bot-doctor = "trading_bot.doctor:run"
+bot-live-once = "trading_bot.live_once:run"
+bot-close-once = "trading_bot.close_once:run"
+bot-close-all-maker = "trading_bot.position_closer:run"
+bot-maker-cycle = "trading_bot.maker_cycle:run"
+bot-hyper-cycle = "trading_bot.hyper_cycle:run"
+bot-hyper-runner = "trading_bot.hyper_runner:run"
+bot-bsb-cycle = "trading_bot.bsb_cycle:run"
+bot-bsb-runner = "trading_bot.bsb_runner:run"
+bot-momentum-cycle = "trading_bot.momentum_cycle:run"
+bot-momentum-runner = "trading_bot.momentum_runner:run"
+bot-alt-momentum-cycle = "trading_bot.alt_momentum_cycle:run"
+bot-alt-momentum-runner = "trading_bot.alt_momentum_runner:run"
+bot-backtest-momentum = "trading_bot.momentum_backtest:run"
+bot-backtest-advanced = "trading_bot.advanced_backtest:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
