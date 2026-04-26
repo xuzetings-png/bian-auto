@@ -1,0 +1,317 @@
+# Binance 自动交易底座
+
+这是一个面向本机优先的 Binance 自动交易项目骨架，目标不是马上实盘赚钱，而是先在你的 Mac 上把 `24 小时自动执行` 的基础设施搭稳。
+
+## 当前已经具备的能力
+
+- Binance Futures 公共接口连通
+- Binance 签名只读接口连通
+- 本地代理支持
+- 默认安全模式
+  - `DRY_RUN=true`
+  - `PAPER_TRADING=true`
+  - `EMERGENCY_STOP=true`
+- 执行安全保护
+  - 单仓限制
+  - 重复信号保护
+  - 持仓同步校验
+- 结构化日志输出
+- 日志文件落盘到 `logs/bot.log`
+- 纸面交易状态持久化到 `data/paper_state.json`
+- 运行时保护状态持久化到 `data/runtime_state.json`
+- 策略接口
+  - `noop`：不产生任何信号
+  - `demo_flip`：用于演示自动开平仓链路
+- 实盘实验命令
+  - `bot-hyper-runner`：`HYPERUSDT` 小口 maker 批量测试
+  - `bot-bsb-runner`：`BSBUSDT` 双向同价开仓批量测试
+  - `bot-momentum-runner`：主流币 `USDC` 短周期动量扫描器
+- `bot-alt-momentum-runner`：山寨 `USDT` 动量实战扫描器
+- Mac 本地守护脚本
+- 本地 Web 控制台
+  - 一个按钮启动策略
+  - 一个按钮停止监控并执行 maker 挂单清仓
+  - 查看当前运行状态、关键 `.env` 配置、运行时状态文件
+  - 查看整理成人话的事件日志
+  - 前端一键清空当前显示，不删除磁盘日志
+
+## 当前还没有做的事情
+
+- 还没有证明任何一条策略能够长期稳定盈利
+- 还没有接入 WebSocket 实时行情
+- 还没有做数据库版订单/持仓归档
+- 还没有接入 Telegram 或飞书告警
+- 还没有开启真实下单
+
+## 目录说明
+
+- `src/trading_bot/`
+  核心代码
+- `scripts/start_bot.sh`
+  启动 bot
+- `scripts/keep_alive.sh`
+  bot 异常退出后自动拉起
+- `logs/`
+  运行日志
+- `data/paper_state.json`
+  纸面交易状态
+
+## 初始化
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+cp .env.example .env
+```
+
+## 推荐的 `.env` 初始设置
+
+第一次先保持下面这些值：
+
+```env
+DRY_RUN=true
+PAPER_TRADING=true
+EMERGENCY_STOP=true
+STRATEGY_NAME=noop
+```
+
+如果你要测试完整的纸面开平仓链路，可以改成：
+
+```env
+STRATEGY_NAME=demo_flip
+POLL_INTERVAL_SECONDS=10
+DEMO_STRATEGY_INTERVAL_TICKS=6
+MAX_NOTIONAL_USDT=200
+```
+
+说明：
+
+- `demo_flip` 每隔固定 tick 产生一次演示信号
+- 它会按顺序执行
+  - 开多
+  - 平多
+  - 开空
+  - 平空
+- 因为 `PAPER_TRADING=true`，所以不会真实下单
+
+默认还会启用这些保护：
+
+```env
+SINGLE_POSITION_MODE=true
+SIGNAL_DEDUP_SECONDS=30
+POSITION_SYNC_TOLERANCE=0.000001
+STARTUP_POSITION_MODE=adopt
+ENFORCE_EXCHANGE_RULES=true
+AUTO_FREEZE_ON_RECOVERY_ERROR=true
+```
+
+含义：
+
+- `SINGLE_POSITION_MODE=true`
+  同一时刻只允许单仓，不允许未平仓时继续开反向或同向新仓
+- `SIGNAL_DEDUP_SECONDS=30`
+  30 秒内相同信号只允许执行一次
+- `POSITION_SYNC_TOLERANCE`
+  本地预期仓位和当前仓位不一致时，直接拦截执行
+- `STARTUP_POSITION_MODE=adopt`
+  启动时如果发现账户里本来就有仓位，默认接管这笔仓位并同步到运行状态
+- `STARTUP_POSITION_MODE=freeze`
+  启动时只要发现已有仓位，就冻结执行，等你人工确认
+- `ENFORCE_EXCHANGE_RULES=true`
+  下单前自动校验 Binance 的最小下单量、最小名义金额、价格精度、数量精度
+- `AUTO_FREEZE_ON_RECOVERY_ERROR=true`
+  发现状态冲突或订单回查异常时，自动冻结执行，等待人工排查
+
+## 常用命令
+
+激活环境：
+
+```bash
+cd /Users/lulu/Documents/Codex/2026-04-25/100u-polymarket
+source .venv/bin/activate
+```
+
+账户连通诊断：
+
+```bash
+bot-doctor
+```
+
+前台启动 bot：
+
+```bash
+bot
+```
+
+使用脚本启动：
+
+```bash
+./scripts/start_bot.sh
+```
+
+启动本地 Web 控制台：
+
+```bash
+./scripts/start_dashboard.sh
+```
+
+打开页面：
+
+```text
+http://127.0.0.1:8765
+```
+
+控制台默认启动 `bot-alt-momentum-runner`。如果要换成其他入口，可以在启动控制台前设置：
+
+```bash
+export DASHBOARD_STRATEGY_COMMAND=bot-momentum-runner
+./scripts/start_dashboard.sh
+```
+
+“停止并清仓”会先停止策略进程，再撤掉未成交挂单，并使用 `LIMIT + GTX` 的 maker 单反复追价平仓。安全模式下不会真实下单，会在事件日志里提示跳过原因。
+
+页面里的“安全模式”开关会同步修改 `.env`：
+
+- 开启：`PAPER_TRADING=true`、`DRY_RUN=true`、`EMERGENCY_STOP=true`
+- 关闭：`PAPER_TRADING=false`、`DRY_RUN=false`、`EMERGENCY_STOP=false`
+
+策略运行中不能切换安全模式，需要先停止策略。
+
+页面里的“策略参数”会同步修改 `.env`：
+
+- `MOMENTUM_UNIVERSE_TOP_N`：每轮动态从全市场取前 N 个山寨币，默认 `10`
+- `MOMENTUM_QUOTE_NOTIONAL_USDT`：每个币单次计划投入金额，默认 `25`
+
+策略运行中不能修改策略参数，需要先停止策略。
+
+守护运行：
+
+```bash
+./scripts/keep_alive.sh
+```
+
+`HYPER` 和 `BSB` 的实盘实验命令：
+
+```bash
+bot-hyper-runner
+bot-bsb-runner
+bot-momentum-runner
+bot-momentum-cycle
+bot-alt-momentum-cycle
+bot-alt-momentum-runner
+```
+
+## 运行模式说明
+
+### 1. `DRY_RUN=true + PAPER_TRADING=true`
+
+当前默认模式。系统会：
+
+- 拉行情
+- 做健康检查
+- 读取账户
+- 执行纸面交易
+- 写日志和状态文件
+
+系统不会：
+
+- 向 Binance 发送真实订单
+
+### 2. `DRY_RUN=true + PAPER_TRADING=false`
+
+系统只走到“生成订单意图”这一步，不落地为纸面仓位，也不真实下单。
+
+### 3. `DRY_RUN=false + PAPER_TRADING=false + EMERGENCY_STOP=false`
+
+这才是未来的真实下单模式。现在还不建议启用。
+
+## 新增的实盘前保护
+
+- 启动接管保护
+  - `adopt`：接管现有仓位
+  - `freeze`：发现现有仓位就停
+- 交易所规则保护
+  - 自动读取 Binance `exchangeInfo`
+  - 校验 `tickSize`
+  - 校验 `stepSize`
+  - 校验最小下单量
+  - 校验最小名义金额
+- 客户端订单 ID
+  - 每笔真实订单都会附带唯一 `clientOrderId`
+- `reduceOnly` 保护
+  - 没有持仓时不允许发送 reduce-only
+  - 持仓方向不匹配时不允许发送 reduce-only
+- 恢复冻结保护
+  - 持仓同步失败时自动冻结
+  - 订单回查失败时自动冻结
+  - `bot-doctor` 可直接查看冻结原因
+
+## 实盘实验线
+
+### `HYPERUSDT`
+
+这条线延续的是“小口 maker 吃肉 + 严格止损 + 只在相对合适的环境里出手”的思路。
+
+- 只做 `HYPERUSDT`
+- 先看 1 分钟级别的环境过滤
+- 通过后再找更短窗口的回落点
+- 进场后用小止盈和硬止损管理
+- 批量 runner 会在每轮后检查仓位和挂单是否归零
+
+### `BSBUSDT`
+
+这条线是新的双向尝试。
+
+- 同一价位同时挂 `LONG` 买单和 `SHORT` 卖单
+- 两边都成交后才进入管理阶段
+- 多头止盈目标更小，止损更大
+- 空头止盈目标更小，止损更大
+- 当多空两边都平掉后，才进入下一轮
+
+这条线目前还是实验性质，适合先小样本跑几轮，看它在不同波动环境下的真实行为。
+
+### `主流币 USDC 动量扫描`
+
+这条线来自更通用的“短周期动量 + 趋势确认”思路。
+
+- 会优先扫描 `BTCUSDC`、`ETHUSDC`、`SOLUSDC`、`BNBUSDC`、`XRPUSDC`、`DOGEUSDC`
+- 先筛出短周期动量最强的标的
+- 再根据方向决定做多或做空
+- 进场尽量用 maker 挂单
+- 出场使用小止盈和硬止损
+
+这条线适合用来观察“主流币里谁在带节奏”，也适合后续继续扩展成多标的选币器。
+
+### `山寨 USDT 动量实战`
+
+这条线是给“强势山寨”准备的探索通道。
+
+- 会扫描当前 Binance Futures 上可用的 `USDT` 山寨合约，并自动排除主流六个标的
+- 先按 24 小时成交额筛出前 `20` 个强势山寨，再做短周期动量判断
+- 每轮会优先尝试排序前 `3` 个候选，哪怕第一名不够强，也会继续往下试
+- 通过短周期动量给出相对强弱排序
+- 用同样的 maker 进出场和止损逻辑做实验
+- 适合继续观察哪些山寨更容易走出持续性趋势
+
+这条线目前更适合小样本、多轮次测试，先把“哪些币容易跑出肉”摸清楚，再考虑后续怎么放大。当前方向上会比之前更积极一些，目标是减少 0 成交的轮次。
+
+## API 权限建议
+
+只勾：
+
+- `允许读取`
+- `允许合约`
+
+不要勾：
+
+- `允许提现`
+- `允许现货及杠杆交易`
+- 任何与划转、借贷、期权相关的权限
+
+## 下一阶段建议
+
+1. 继续用 `bot-hyper-runner` 和 `bot-bsb-runner` 跑小批次样本
+2. 复盘每轮的成交、空过、止损和净收益
+3. 再把更稳定的参数沉淀成正式脚本
+4. 后续再接飞书、钉钉或微信告警
