@@ -1,0 +1,13 @@
+{
+  "last_signal_key": "",
+  "last_signal_ts": 0.0,
+  "expected_position_qty": 0.0,
+  "last_exchange_position_qty": 0.0,
+  "startup_reconciled": true,
+  "startup_mode": "adopt",
+  "recovery_frozen": false,
+  "recovery_reason": "",
+  "last_client_order_id": "",
+  "last_order_status": "",
+  "last_order_id": ""
+}
