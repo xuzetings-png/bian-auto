@@ -1,0 +1,18 @@
+[console_scripts]
+bot = trading_bot.main:run
+bot-alt-momentum-cycle = trading_bot.alt_momentum_cycle:run
+bot-alt-momentum-runner = trading_bot.alt_momentum_runner:run
+bot-backtest-advanced = trading_bot.advanced_backtest:main
+bot-backtest-momentum = trading_bot.momentum_backtest:run
+bot-bsb-cycle = trading_bot.bsb_cycle:run
+bot-bsb-runner = trading_bot.bsb_runner:run
+bot-close-all-maker = trading_bot.position_closer:run
+bot-close-once = trading_bot.close_once:run
+bot-dashboard = trading_bot.dashboard:run
+bot-doctor = trading_bot.doctor:run
+bot-hyper-cycle = trading_bot.hyper_cycle:run
+bot-hyper-runner = trading_bot.hyper_runner:run
+bot-live-once = trading_bot.live_once:run
+bot-maker-cycle = trading_bot.maker_cycle:run
+bot-momentum-cycle = trading_bot.momentum_cycle:run
+bot-momentum-runner = trading_bot.momentum_runner:run
