@@ -1,0 +1,10 @@
+{
+  "symbol": "BTCUSDT",
+  "cash_balance": 10000.0,
+  "position_qty": 0.0,
+  "average_entry_price": 0.0,
+  "realized_pnl": 0.0,
+  "last_mark_price": 77272.6,
+  "order_seq": 0,
+  "orders": []
+}
